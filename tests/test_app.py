@@ -144,6 +144,30 @@ class ExportCCProjectEndpointTest(unittest.TestCase):
             shutil.rmtree(target.parent, ignore_errors=True)
 
 
+class ExportCCDefaultPathTest(unittest.TestCase):
+    def test_empty_target_dir_uses_default(self):
+        from app import add_idea_spark_session
+        sess = add_idea_spark_session(
+            papers_info=[{"name": "a.pdf", "title": "A", "abstract": "x", "tags": [], "notes": ""}],
+            user_context="ctx",
+            result_content="# brief",
+        )
+        with _LiveServer() as srv:
+            port = srv.server.server_address[1]
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/idea-spark/export-cc-project",
+                data=json.dumps({"session_id": sess["id"], "target_dir": ""}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req) as r:
+                data = json.loads(r.read())
+        self.assertTrue(data["success"])
+        self.assertIn("whiskershelf-brief-", data["path"])
+        import shutil
+        shutil.rmtree(data["path"], ignore_errors=True)
+
+
 class AgentPapersListTest(unittest.TestCase):
     def test_returns_paper_list(self):
         with _LiveServer() as srv:

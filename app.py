@@ -1102,18 +1102,20 @@ class PaperHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "invalid json"}, 400)
                 return
             session_id = payload.get("session_id", "").strip()
-            target_dir = payload.get("target_dir", "").strip()
+            target_dir = (payload.get("target_dir") or "").strip()
             if not session_id:
                 self._send_json({"error": "session_id is required"}, 400)
-                return
-            if not target_dir:
-                self._send_json({"error": "target_dir is required"}, 400)
                 return
             session = get_idea_spark_session(session_id)
             if not session:
                 self._send_json({"error": "session not found"}, 404)
                 return
             try:
+                if not target_dir:
+                    # Default: <user-home>/Documents/whiskershelf-briefs/whiskershelf-brief-YYYY-MM-DD-HHMM/
+                    docs = Path.home() / "Documents" / "whiskershelf-briefs"
+                    timestamp = time.strftime("%Y-%m-%d-%H%M", time.localtime(session.get("time", time.time())))
+                    target_dir = str(docs / f"whiskershelf-brief-{timestamp}")
                 target = Path(target_dir)
                 target.mkdir(parents=True, exist_ok=True)
                 result_path = build_cc_project(session, target)
