@@ -1123,6 +1123,45 @@ class PaperHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": str(e)}, 500)
             return
 
+        # API: Agent - 设置论文标签（gated，CC 需在 SKILL 中要求用户确认） /api/agent/papers/{name}/tags
+        if path.startswith("/api/agent/papers/") and path.endswith("/tags"):
+            prefix = "/api/agent/papers/"
+            suffix = "/tags"
+            name = urllib.parse.unquote(path[len(prefix):-len(suffix)])
+            if not name:
+                self._send_json({"error": "invalid name"}, 400)
+                return
+            content_len = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_len).decode("utf-8")
+            try:
+                payload = json.loads(body)
+            except json.JSONDecodeError:
+                self._send_json({"error": "invalid json"}, 400)
+                return
+            new_tags = payload.get("tags", [])
+            if not isinstance(new_tags, list):
+                self._send_json({"error": "tags must be list"}, 400)
+                return
+            # Clean: strip + dedup
+            cleaned = []
+            seen = set()
+            for t in new_tags:
+                if isinstance(t, str):
+                    t = t.strip()
+                    if t and t not in seen:
+                        seen.add(t)
+                        cleaned.append(t)
+            tags = load_tags()
+            if name not in tags:
+                self._send_json({"error": "paper not found"}, 404)
+                return
+            tags[name] = cleaned
+            save_tags(tags)
+            # Audit log (printed to server console)
+            print(f"[Agent API] tags updated for {name}: {cleaned}")
+            self._send_json({"success": True, "tags": cleaned})
+            return
+
         # API: Agent - 语义搜索 /api/agent/search
         if path == "/api/agent/search":
             content_len = int(self.headers.get("Content-Length", 0))

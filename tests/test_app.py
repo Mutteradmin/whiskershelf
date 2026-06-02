@@ -222,5 +222,40 @@ class AgentSearchTest(unittest.TestCase):
         self.assertEqual(data["results"], [])
 
 
+class AgentTagWriteTest(unittest.TestCase):
+    def test_set_tags(self):
+        from app import ROOT
+        pdfs = [p.name for p in ROOT.iterdir() if p.suffix.lower() == ".pdf"]
+        if not pdfs:
+            self.skipTest("No PDFs in project root to test against")
+        name = pdfs[0]
+        with _LiveServer() as srv:
+            port = srv.server.server_address[1]
+            encoded = urllib.parse.quote(name, safe="")
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/agent/papers/{encoded}/tags",
+                data=json.dumps({"tags": ["test-tag-x", "test-tag-y"]}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req) as r:
+                data = json.loads(r.read())
+        self.assertTrue(data["success"])
+        self.assertIn("test-tag-x", data["tags"])
+
+    def test_invalid_name_returns_400(self):
+        with _LiveServer() as srv:
+            port = srv.server.server_address[1]
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/agent/papers//tags",
+                data=json.dumps({"tags": ["x"]}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(req)
+            self.assertEqual(ctx.exception.code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()
