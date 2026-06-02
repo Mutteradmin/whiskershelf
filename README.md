@@ -1,7 +1,7 @@
 <div align="center">
 <img src="./static/cat_src_2.png" alt="WhiskerShelf — a cat stretching on the shelf" width="350" />
 
-# 🐾 WhiskerShelf · 温馨文献书架
+# 🐾 AI WhiskerShelf · AI 温馨文献书架
 
 **A cozy local AI-powered paper library manager — with a cat on the shelf.**
 
