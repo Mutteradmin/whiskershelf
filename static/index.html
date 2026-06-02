@@ -316,6 +316,19 @@
                 </div>
             </div>
 
+            <div class="setting-group">
+                <h3 class="setting-title">🚀 Claude Code 集成</h3>
+                <div class="ai-config-form">
+                    <div class="form-row">
+                        <label>CC 项目默认输出目录 <span class="form-hint">（Idea Spark → 🚀 生成 CC 项目时用）</span></label>
+                        <input type="text" id="ccProjectDir" placeholder="留空使用默认：~/Documents/whiskershelf-briefs/">
+                    </div>
+                    <div class="form-hint" style="margin-top:0.4rem;">
+                        支持 <code>~</code> 展开（如 <code>~/Desktop/cc-projects</code>）。每次生成会在该目录下创建 <code>whiskershelf-brief-YYYY-MM-DD-HHMM/</code> 子目录。
+                    </div>
+                </div>
+            </div>
+
             <div class="modal-actions">
                 <button class="btn-save" id="closeSettingsBtn">完成</button>
             </div>

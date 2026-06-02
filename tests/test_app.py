@@ -145,6 +145,21 @@ class ExportCCProjectEndpointTest(unittest.TestCase):
 
 
 class ExportCCDefaultPathTest(unittest.TestCase):
+    def setUp(self):
+        from app import AI_CONFIG_FILE
+        # Save the original config to restore after the test
+        self._orig_path = AI_CONFIG_FILE
+        self._orig = {}
+        if AI_CONFIG_FILE.exists():
+            try:
+                self._orig = json.loads(AI_CONFIG_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                self._orig = {}
+
+    def tearDown(self):
+        from app import save_ai_config
+        save_ai_config(self._orig)
+
     def test_empty_target_dir_uses_default(self):
         from app import add_idea_spark_session
         sess = add_idea_spark_session(
@@ -164,7 +179,43 @@ class ExportCCDefaultPathTest(unittest.TestCase):
                 data = json.loads(r.read())
         self.assertTrue(data["success"])
         self.assertIn("whiskershelf-brief-", data["path"])
+        # Default base is <home>/Documents/whiskershelf-briefs/
+        from pathlib import Path
+        self.assertIn("whiskershelf-briefs", data["path"])
+        self.assertTrue(data["path"].startswith(str(Path.home())))
         import shutil
+        shutil.rmtree(data["path"], ignore_errors=True)
+
+    def test_custom_cc_project_dir_honored(self):
+        import shutil, tempfile
+        from pathlib import Path
+        from app import add_idea_spark_session, save_ai_config, load_ai_config
+
+        # Set a custom base via the same mechanism the UI uses
+        custom_base = Path(tempfile.mkdtemp()) / "my-cc-projects"
+        cfg = load_ai_config()
+        cfg["cc_project_dir"] = str(custom_base)
+        save_ai_config(cfg)
+
+        sess = add_idea_spark_session(
+            papers_info=[{"name": "a.pdf", "title": "A", "abstract": "x", "tags": [], "notes": ""}],
+            user_context="ctx",
+            result_content="# brief",
+        )
+        with _LiveServer() as srv:
+            port = srv.server.server_address[1]
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/idea-spark/export-cc-project",
+                data=json.dumps({"session_id": sess["id"], "target_dir": ""}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req) as r:
+                data = json.loads(r.read())
+        self.assertTrue(data["success"])
+        self.assertTrue(data["path"].startswith(str(custom_base.resolve())))
+        self.assertIn("whiskershelf-brief-", Path(data["path"]).name)
+        shutil.rmtree(custom_base, ignore_errors=True)
         shutil.rmtree(data["path"], ignore_errors=True)
 
 

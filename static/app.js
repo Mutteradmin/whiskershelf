@@ -1359,7 +1359,8 @@ async function loadAiConfig() {
             model: cfg.model || 'deepseek-chat',
             enabled: cfg.enabled || false,
             thinking_enabled: cfg.thinking_enabled || false,
-            thinking_budget: cfg.thinking_budget || 2048
+            thinking_budget: cfg.thinking_budget || 2048,
+            cc_project_dir: cfg.cc_project_dir || ''
         };
         document.getElementById('aiEnabled').checked = aiConfig.enabled;
         document.getElementById('aiApiKey').value = realKey;
@@ -1367,6 +1368,7 @@ async function loadAiConfig() {
         document.getElementById('aiModel').value = aiConfig.model;
         document.getElementById('aiThinkingEnabled').checked = aiConfig.thinking_enabled;
         document.getElementById('aiThinkingBudget').value = aiConfig.thinking_budget;
+        document.getElementById('ccProjectDir').value = aiConfig.cc_project_dir || '';
         updateThinkingBudgetVisibility();
         updateAiSearchButton();
     } catch (e) {
@@ -1387,7 +1389,8 @@ async function saveAiConfig() {
         model: document.getElementById('aiModel').value.trim(),
         enabled: document.getElementById('aiEnabled').checked,
         thinking_enabled: document.getElementById('aiThinkingEnabled').checked,
-        thinking_budget: parseInt(document.getElementById('aiThinkingBudget').value, 10) || 2048
+        thinking_budget: parseInt(document.getElementById('aiThinkingBudget').value, 10) || 2048,
+        cc_project_dir: document.getElementById('ccProjectDir').value.trim()
     };
     try {
         await apiPost('/api/ai/config', cfg);
@@ -1421,6 +1424,7 @@ document.getElementById('aiThinkingEnabled').addEventListener('change', () => {
     saveAiConfig();
 });
 document.getElementById('aiThinkingBudget').addEventListener('change', saveAiConfig);
+document.getElementById('ccProjectDir').addEventListener('change', saveAiConfig);
 
 document.getElementById('testAiBtn').addEventListener('click', async () => {
     const btn = document.getElementById('testAiBtn');

@@ -387,7 +387,8 @@ def load_ai_config():
         "model": "deepseek-chat",
         "enabled": False,
         "thinking_enabled": False,
-        "thinking_budget": 2048
+        "thinking_budget": 2048,
+        "cc_project_dir": ""  # 用户配置：CC 项目默认输出目录（空=用内置默认）
     }
 
 
@@ -395,6 +396,22 @@ def save_ai_config(cfg):
     """保存AI配置"""
     with open(AI_CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def get_default_cc_project_base():
+    """解析用户配置的 CC 项目输出基础目录。空值/无效值 → 内置默认。"""
+    cfg = load_ai_config()
+    raw = (cfg.get("cc_project_dir") or "").strip()
+    if raw:
+        # 展开 ~ 和环境变量
+        candidate = Path(raw).expanduser()
+        try:
+            candidate = candidate.resolve()
+        except Exception:
+            return None
+        return candidate
+    # 内置默认：<user-home>/Documents/whiskershelf-briefs/
+    return Path.home() / "Documents" / "whiskershelf-briefs"
 
 
 def call_llm(messages, config, max_tokens=2048):
@@ -761,7 +778,8 @@ class PaperHandler(BaseHTTPRequestHandler):
                 "enabled": cfg.get("enabled", False),
                 "has_key": bool(cfg.get("api_key", "").strip()),
                 "thinking_enabled": cfg.get("thinking_enabled", False),
-                "thinking_budget": cfg.get("thinking_budget", 2048)
+                "thinking_budget": cfg.get("thinking_budget", 2048),
+                "cc_project_dir": cfg.get("cc_project_dir", "")
             }
             self._send_json(safe)
             return
@@ -949,6 +967,8 @@ class PaperHandler(BaseHTTPRequestHandler):
                     cfg["thinking_budget"] = max(256, min(32768, int(payload["thinking_budget"])))
                 except (ValueError, TypeError):
                     pass
+            if "cc_project_dir" in payload:
+                cfg["cc_project_dir"] = str(payload["cc_project_dir"] or "").strip()
             save_ai_config(cfg)
             safe = {k: v for k, v in cfg.items()}
             if safe.get("api_key"):
@@ -1139,10 +1159,11 @@ class PaperHandler(BaseHTTPRequestHandler):
                 return
             try:
                 if not target_dir:
-                    # Default: <user-home>/Documents/whiskershelf-briefs/whiskershelf-brief-YYYY-MM-DD-HHMM/
-                    docs = Path.home() / "Documents" / "whiskershelf-briefs"
+                    # Default: <用户配置>/whiskershelf-brief-YYYY-MM-DD-HHMM/
+                    # 基础目录来自 ai_config.json 的 cc_project_dir 字段
+                    base = get_default_cc_project_base()
                     timestamp = time.strftime("%Y-%m-%d-%H%M", time.localtime(session.get("time", time.time())))
-                    target_dir = str(docs / f"whiskershelf-brief-{timestamp}")
+                    target_dir = str(base / f"whiskershelf-brief-{timestamp}")
                 target = Path(target_dir)
                 target.mkdir(parents=True, exist_ok=True)
                 result_path = build_cc_project(session, target)
