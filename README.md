@@ -213,6 +213,18 @@ For models that support chain-of-thought (DeepSeek-R1, Qwen3-Thinking, GLM-4.5, 
 2. The model's reasoning appears in a collapsible **💭 思考过程** panel above the result
 3. Also exported into the downloaded `.md`
 
+### 🚀 From Idea Spark to Claude Code (in 3 clicks)
+
+The brief generated above is already agent-ready. To hand it off to Claude Code:
+
+1. Click **🚀 生成 CC 项目** in the result toolbar.
+2. WhiskerShelf writes a self-contained project directory to:
+   `<your home>/Documents/whiskershelf-briefs/whiskershelf-brief-YYYY-MM-DD-HHMM/`
+   It contains `brief.md`, `CLAUDE.md`, `selected-papers.json`, a starter script (`start-claude.sh` or `.bat`), and 3 Skills under `.claude/skills/`.
+3. `cd` into that directory and run `claude`. Claude Code auto-discovers the Skills and uses the brief as its task spec.
+
+The Skills (`whiskershelf-brief`, `whiskershelf-search`, `whiskershelf-tag`) guide CC through a research workflow: read the brief, propose a plan, search your library for context, tag progress. See `static/skills/` for the templates and the spec at `docs/superpowers/specs/` for the design rationale.
+
 ---
 
 ## 🆚 How is this different from ...?
