@@ -16,7 +16,7 @@ Stack your research on a digital corkboard, and let a curious cat watch over the
 
 [English](#-features) · [中文说明](#-中文说明)
 
-
+</div>
 
 ---
 
@@ -329,6 +329,11 @@ Please keep dependencies minimal — the spirit of the project is "stdlib + a sp
 
 **完全离线可用**：AI 功能关掉就是一个纯本地文献管理工具。
 
+---
+
 <div align="center">
 
 Made with 🐾 for paper lovers who also love cats.
+
+</div>
+
