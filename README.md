@@ -31,9 +31,8 @@ Stack your research on a digital corkboard, and let a curious cat watch over the
 - 🤖 **AI reading habit analysis** — feed your reading history to an LLM, get personalized research direction suggestions
 - 🔍 **AI semantic search** — search by intent, not just keywords
 - 💡 **Idea Spark** — pick 2–4 papers, LLM collides them into novel research directions, with an exportable Markdown task brief ready for Claude Code
-- 🧠 **Reasoning / Chain-of-Thought** — optional, lets you see the model's thinking process (DeepSeek-R1 / Qwen3-Thinking / GLM-4.5 / OpenAI o1)
+- 🧠 **Reasoning / Chain-of-Thought** — optional, lets you see the model's thinking process (DeepSeek-v4 / Qwen3.7-Thinking / GLM-5 / OpenAI GPT)
 - 📂 **Reveal in file manager** — one click to highlight the PDF in Windows Explorer / macOS Finder
-- ⌨️ **Keyboard shortcut** — `Ctrl+S` saves tag edits without leaving the keyboard
 - 🌗 **Light / dark theme** — paper-warm by day, ink-blue by night
 - 🔌 **Zero third-party dependencies** — only the Python standard library (and optional `PyPDF2` for PDF abstract extraction)
 
