@@ -810,6 +810,21 @@ class PaperHandler(BaseHTTPRequestHandler):
             self._send_json({"success": True, "session": session})
             return
 
+        # API: Agent - 列出所有论文 /api/agent/papers
+        if path == "/api/agent/papers":
+            papers = get_papers()
+            summary = []
+            for p in papers:
+                ab = (p.get("abstract") or "").strip()
+                summary.append({
+                    "name": p.get("name"),
+                    "title": p.get("display") or p.get("name"),
+                    "tags": p.get("tags", []),
+                    "abstract_preview": ab[:300]
+                })
+            self._send_json({"papers": summary})
+            return
+
         # 静态文件 /static/...
         if path.startswith("/static/"):
             rel = path[8:]  # 去掉 /static/

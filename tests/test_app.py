@@ -144,5 +144,21 @@ class ExportCCProjectEndpointTest(unittest.TestCase):
             shutil.rmtree(target.parent, ignore_errors=True)
 
 
+class AgentPapersListTest(unittest.TestCase):
+    def test_returns_paper_list(self):
+        with _LiveServer() as srv:
+            port = srv.server.server_address[1]
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/agent/papers") as r:
+                data = json.loads(r.read())
+        self.assertIn("papers", data)
+        self.assertIsInstance(data["papers"], list)
+        # Each paper has at minimum: name, title, abstract_preview
+        if data["papers"]:
+            p = data["papers"][0]
+            self.assertIn("name", p)
+            self.assertIn("title", p)
+            self.assertIn("abstract_preview", p)
+
+
 if __name__ == "__main__":
     unittest.main()
