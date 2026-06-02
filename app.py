@@ -14,8 +14,20 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
 # 配置
-ROOT = Path(".").resolve()
-STATIC_DIR = ROOT / "static"
+# ROOT 决定哪里是"用户数据目录"（PDFs + JSON 数据文件）
+# 默认是当前工作目录；可用 --root <path> 覆盖：
+#   python app.py --root "E:/my-papers"
+import sys
+_arg_root = None
+if "--root" in sys.argv:
+    _i = sys.argv.index("--root")
+    if _i + 1 < len(sys.argv):
+        _arg_root = sys.argv[_i + 1]
+if _arg_root:
+    ROOT = Path(_arg_root).expanduser().resolve()
+else:
+    ROOT = Path(".").resolve()
+STATIC_DIR = Path(__file__).resolve().parent / "static"  # static 永远在 app.py 同目录
 TAGS_FILE = ROOT / "paper_tags.json"
 PRESETS_FILE = ROOT / "tag_presets.json"
 READING_FILE = ROOT / "paper_reading.json"
