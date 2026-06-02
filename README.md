@@ -46,7 +46,7 @@ Stack your research on a digital corkboard, and let a curious cat watch over the
 | View | Description |
 |---|---|
 | 🏠 **Main board** | Paper cards with tag stickers, abstracts, notes, stats |
-| 🧠 **AI 分析** | LLM-analyzed reading habits with persistent history |
+| 🧠 **AI analyze** | LLM-analyzed reading habits with persistent history |
 | 💡 **Idea Spark** | Cross-paper brainstorming with downloadable Markdown brief |
 | ⚙️ **Settings** | API key, base URL, model, thinking mode toggle |
 
@@ -94,7 +94,7 @@ That's it. The first time you start, the app will:
 
 ### 4. Drop your PDFs in
 
-Just copy any `.pdf` files into the same folder as `app.py`. Click 🔄 **刷新** in the toolbar to re-scan. The cat will re-roll, papers will appear as cards.
+Just copy any `.pdf` files into the same folder as `app.py`. Click 🔄 **刷新 (refresh)** in the toolbar to re-scan. The cat will re-roll, papers will appear as cards.
 
 ---
 
