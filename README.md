@@ -215,6 +215,28 @@ For models that support chain-of-thought (DeepSeek-R1, Qwen3-Thinking, GLM-4.5, 
 
 ---
 
+## 🆚 How is this different from ...?
+
+A cheat sheet for the "why not just use X" question:
+
+| Tool | What it does well | What WhiskerShelf adds |
+|---|---|---|
+| **Zotero / Mendeley** | Reference management, citation export | AI-synthesized cross-paper research directions |
+| **Elicit / Consensus** | AI paper discovery, Q&A over literature | Local-first: your PDFs never leave your disk |
+| **Obsidian / Logseq** | Note-taking, knowledge graph | Purpose-built for paper reading → idea generation |
+| **Connected Papers** | Visual citation graph | The graph becomes *executable tasks* for Claude Code |
+| **ChatGPT + papers** | Ad-hoc Q&A | Persistent research history across sessions and devices |
+
+### The unique combination
+
+WhiskerShelf is the only tool that combines all three:
+
+1. **Local-first paper library** (PDFs never leave your disk)
+2. **LLM-driven cross-paper idea generation** (Idea Spark)
+3. **First-class Markdown export designed for Agent Coding** (drop the brief into Claude Code as a task)
+
+---
+
 ## 💡 Innovations
 
 What makes WhiskerShelf different from the dozens of existing paper managers?
