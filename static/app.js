@@ -1065,6 +1065,46 @@ function buildFullMarkdown() {
     return `# Idea Spark 灵感火花\n\n> 生成时间：${time}\n\n## 选中的论文\n${paperList}\n${ctx}${thinking}---\n\n${ideaSparkCurrentSource || ''}`;
 }
 
+document.getElementById('exportCcProjectBtn').addEventListener('click', async () => {
+    if (!ideaSparkCurrentSession || !ideaSparkCurrentSession.id) {
+        showToast('请先生成一次灵感火花');
+        return;
+    }
+    const btn = document.getElementById('exportCcProjectBtn');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.innerHTML = '<span class="ai-loading"></span>生成中';
+    try {
+        const resp = await fetch('/api/idea-spark/export-cc-project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: ideaSparkCurrentSession.id,
+                target_dir: ''
+            })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error || 'export failed');
+        const choice = confirm('已生成 CC 项目到:\n' + data.path + '\n\n是否打开此目录？');
+        if (choice) {
+            try {
+                await navigator.clipboard.writeText(data.path);
+                showToast('路径已复制到剪贴板 📋');
+            } catch (e) {
+                showToast('已生成：' + data.path);
+            }
+        } else {
+            showToast('已生成 ✅');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('生成失败：' + (e.message || '请重试'));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+});
+
 downloadMdBtn.addEventListener('click', () => {
     if (!ideaSparkCurrentSource) return;
     const md = buildFullMarkdown();
