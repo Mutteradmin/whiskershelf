@@ -224,7 +224,17 @@ The brief generated above is already agent-ready. To hand it off to Claude Code:
    It contains `brief.md`, `CLAUDE.md`, `selected-papers.json`, a starter script (`start-claude.sh` or `.bat`), and 3 Skills under `.claude/skills/`.
 3. `cd` into that directory and run `claude`. Claude Code auto-discovers the Skills and uses the brief as its task spec.
 
-The Skills (`whiskershelf-brief`, `whiskershelf-search`, `whiskershelf-tag`) guide CC through a research workflow: read the brief, propose a plan, search your library for context, tag progress. See `whiskershelf-skills/` for the templates and the spec at `docs/superpowers/specs/` for the design rationale.
+WhiskerShelf ships **5 Skills** that turn Claude Code into a research collaborator (not just a code generator). See `whiskershelf-skills/` for the full content.
+
+| Skill | Purpose | When CC uses it |
+|---|---|---|
+| `whiskershelf-brief` | Load and interpret an Idea Spark brief as a task spec | Auto-loaded when starting CC in a generated project |
+| `whiskershelf-search` | Query the user's **local** WhiskerShelf library | "Find my X paper", "what's in my library" |
+| `whiskershelf-web-search` | Search the **open literature** (arxiv, Semantic Scholar, etc.) | "Is there recent work on X?", brief cites a paper user doesn't have |
+| `whiskershelf-tag` | Read/write tags (with user-confirmation gate) | After completing a direction, organizing new artifacts |
+| `whiskershelf-subagents` | Delegate parallel exploration to subagents | "Give me a complete plan", "explore this in depth" |
+
+Combined workflow: CC reads the brief → proposes a plan → searches your library for context → if needed, searches the web for missing references → can spawn subagents to thoroughly explore cross-domain angles → executes step by step, tagging progress.
 
 ---
 
