@@ -2040,6 +2040,64 @@ body {
     padding: 0.4rem 0.75rem;
 }
 
+/* ===== Result expand toggle (放大/缩回) ===== */
+.btn-expand-result {
+    background: rgba(168, 216, 234, 0.15);
+    border: 1px solid rgba(168, 216, 234, 0.5);
+    color: var(--ink);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+}
+.btn-expand-result:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+.btn-expand-result .expand-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Fullscreen: result section fills the modal card; other sections hide.
+   Uses :has() — supported in all major browsers from 2023 onward. */
+.idea-spark-main:has(.idea-result-section.fullscreen) > .idea-section:not(.idea-result-section),
+.idea-spark-main:has(.idea-result-section.fullscreen) > .idea-actions-row {
+    display: none;
+}
+.idea-spark-main:has(.idea-result-section.fullscreen) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.idea-spark-main:has(.idea-result-section.fullscreen) .idea-result-section.fullscreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.idea-spark-main:has(.idea-result-section.fullscreen) .idea-result-area {
+    flex: 1;
+    min-height: 280px;
+    max-height: none;
+    overflow-y: auto;
+}
+/* When result is fullscreen, the parent analysis-body grows to use more of the modal */
+.analysis-body:has(.idea-result-section.fullscreen) {
+    max-height: 78vh;
+    min-height: 0;
+}
+.analysis-body:has(.idea-result-section.fullscreen) .analysis-sidebar {
+    /* sidebar stays — clicking history should still work in fullscreen */
+}
+
 /* 历史记录的两行布局 */
 .idea-history-label {
     font-size: 0.78rem;

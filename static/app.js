@@ -629,7 +629,7 @@ editModal.addEventListener('click', (e) => {
     if (e.target === editModal) closeEditModal();
 });
 
-/* ========== 标签编辑 Ctrl+S 快捷键 ========== */
+/* ========== 标签编辑 Ctrl+S 快捷键 + 全局 ESC ========== */
 document.addEventListener('keydown', (e) => {
     // Ctrl+S (Windows/Linux) 或 Cmd+S (Mac)
     if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
@@ -638,6 +638,15 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             e.stopPropagation();
             saveEditingPaper();
+        }
+        return;
+    }
+    // ESC: 优先缩回放大视图；否则不动（避免误关其他 modal）
+    if (e.key === 'Escape') {
+        const expanded = document.querySelector('.idea-result-section.fullscreen');
+        if (expanded) {
+            e.preventDefault();
+            collapseAllExpandedResults();
         }
     }
 });
@@ -2184,6 +2193,45 @@ async function copyMetaReviewMd() {
 
 downloadMetaReviewMdBtn.addEventListener('click', downloadMetaReviewMd);
 copyMetaReviewMdBtn.addEventListener('click', copyMetaReviewMd);
+
+/* ========== Result expand/collapse (放大/缩回) ========== */
+/* Common helper — wire any (button, section) pair. Toggles .fullscreen on the
+   section, swaps the button label, and ensures ESC collapses all open ones. */
+function wireExpandButton(btn, section) {
+    if (!btn || !section) return;
+    const icon = btn.querySelector('.expand-icon');
+    const label = btn.querySelector('.expand-label');
+    btn.addEventListener('click', () => {
+        const isOpen = section.classList.toggle('fullscreen');
+        if (icon) icon.textContent = isOpen ? '⤡' : '⤢';
+        if (label) label.textContent = isOpen ? '缩回' : '放大';
+        btn.title = isOpen ? '缩回到正常大小（ESC 也可以）' : '放大查看整个结果（ESC 缩回）';
+        if (isOpen) {
+            // Scroll result to top so user starts reading from the top
+            const resultArea = section.querySelector('.idea-result-area');
+            if (resultArea) resultArea.scrollTop = 0;
+        }
+    });
+}
+
+wireExpandButton(document.getElementById('ideaExpandBtn'), document.getElementById('ideaSparkResult')?.parentElement);
+wireExpandButton(document.getElementById('compareExpandBtn'), document.getElementById('compareResult')?.parentElement);
+wireExpandButton(document.getElementById('metaReviewExpandBtn'), document.getElementById('metaReviewResult')?.parentElement);
+
+function collapseAllExpandedResults() {
+    document.querySelectorAll('.idea-result-section.fullscreen').forEach(section => {
+        section.classList.remove('fullscreen');
+        // Also reset the corresponding button's label
+        const btn = section.querySelector('.btn-expand-result');
+        if (btn) {
+            const icon = btn.querySelector('.expand-icon');
+            const label = btn.querySelector('.expand-label');
+            if (icon) icon.textContent = '⤢';
+            if (label) label.textContent = '放大';
+            btn.title = '放大查看整个结果（ESC 缩回）';
+        }
+    });
+}
 
 async function renderMetaReviewHistory() {
     try {
