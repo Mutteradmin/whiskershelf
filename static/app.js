@@ -1631,5 +1631,609 @@ backToTopBtn.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
+/* ========== Compare (两篇对照) ========== */
+const compareModal = document.getElementById('compareModal');
+const comparePaperSearch = document.getElementById('comparePaperSearch');
+const compareSelectedChips = document.getElementById('compareSelectedChips');
+const comparePaperResults = document.getElementById('comparePaperResults');
+const compareCounter = document.getElementById('compareCounter');
+const compareFocusInput = document.getElementById('compareFocus');
+const runCompareBtn = document.getElementById('runCompareBtn');
+const clearCompareBtn = document.getElementById('clearCompareBtn');
+const closeCompareBtn = document.getElementById('closeCompareBtn');
+const compareResult = document.getElementById('compareResult');
+const compareResultToolbar = document.getElementById('compareResultToolbar');
+const downloadCompareMdBtn = document.getElementById('downloadCompareMdBtn');
+const copyCompareMdBtn = document.getElementById('copyCompareMdBtn');
+const compareThinkingPanel = document.getElementById('compareThinkingPanel');
+const compareThinkingContent = document.getElementById('compareThinkingContent');
+const compareThinkingMeta = document.getElementById('compareThinkingMeta');
+const compareHistoryList = document.getElementById('compareHistoryList');
+
+let compareSelected = [];
+let compareCurrentSession = null;
+let compareCurrentSource = '';
+let compareCurrentReasoning = '';
+const MAX_COMPARE_PAPERS = 2;
+const MIN_COMPARE_PAPERS = 2;
+
+function renderCompareThinking() {
+    if (compareCurrentReasoning && compareCurrentReasoning.trim()) {
+        compareThinkingContent.textContent = compareCurrentReasoning;
+        compareThinkingMeta.textContent = `(${compareCurrentReasoning.length} 字)`;
+        compareThinkingPanel.style.display = 'block';
+    } else {
+        compareThinkingPanel.style.display = 'none';
+        compareThinkingContent.textContent = '';
+        compareThinkingMeta.textContent = '';
+    }
+}
+
+function openCompareModal() {
+    compareSelected = [];
+    compareCurrentSession = null;
+    compareCurrentSource = '';
+    compareCurrentReasoning = '';
+    comparePaperSearch.value = '';
+    compareFocusInput.value = '';
+    compareResult.innerHTML = '<div class="analysis-loading">选择两篇论文后点击"⚖️ 开始对照"</div>';
+    compareResultToolbar.style.display = 'none';
+    renderCompareThinking();
+    renderCompareSelected();
+    renderCompareResults();
+    renderCompareHistory();
+    compareModal.style.display = 'flex';
+    requestAnimationFrame(() => compareModal.classList.add('show'));
+}
+
+function closeCompareModal() {
+    compareModal.classList.remove('show');
+    setTimeout(() => { compareModal.style.display = 'none'; }, 300);
+}
+
+function renderCompareSelected() {
+    compareCounter.textContent = `已选 ${compareSelected.length}/${MAX_COMPARE_PAPERS}`;
+    if (compareSelected.length === 0) {
+        compareSelectedChips.innerHTML = '<div class="empty-hint">还未选择论文，搜索名称或标签来添加（需 2 篇）</div>';
+    } else {
+        compareSelectedChips.innerHTML = compareSelected.map(name => {
+            const p = allPapers.find(x => x.name === name);
+            const title = p ? p.display : name;
+            const short = title.length > 32 ? title.substring(0, 32) + '…' : title;
+            return `<span class="idea-paper-chip" data-name="${escapeHtml(name)}" title="${escapeHtml(title)}">
+                ${escapeHtml(short)}
+                <span class="idea-chip-remove">×</span>
+            </span>`;
+        }).join('');
+        compareSelectedChips.querySelectorAll('.idea-paper-chip').forEach(el => {
+            el.addEventListener('click', () => {
+                const name = el.dataset.name;
+                compareSelected = compareSelected.filter(n => n !== name);
+                renderCompareSelected();
+                renderCompareResults();
+            });
+        });
+    }
+    updateCompareRunBtnState();
+}
+
+function updateCompareRunBtnState() {
+    const ok = compareSelected.length === MAX_COMPARE_PAPERS;
+    runCompareBtn.disabled = !ok;
+    runCompareBtn.style.opacity = ok ? '1' : '0.5';
+    runCompareBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+function renderCompareResults() {
+    const q = comparePaperSearch.value.trim().toLowerCase();
+    let filtered = allPapers.filter(p => !compareSelected.includes(p.name));
+    if (q) {
+        filtered = filtered.filter(p => {
+            if (p.display.toLowerCase().includes(q)) return true;
+            if (p.tags && p.tags.some(t => t.toLowerCase().includes(q))) return true;
+            return false;
+        });
+    }
+    filtered = filtered.slice(0, 30);
+    if (filtered.length === 0) {
+        comparePaperResults.innerHTML = '<div class="empty-hint">没有匹配的论文</div>';
+        return;
+    }
+    const atLimit = compareSelected.length >= MAX_COMPARE_PAPERS;
+    comparePaperResults.innerHTML = filtered.map(p => {
+        const tagBadges = (p.tags || []).slice(0, 3).map(t => `<span class="idea-mini-tag">${escapeHtml(t)}</span>`).join('');
+        return `<div class="idea-paper-result${atLimit ? ' disabled' : ''}" data-name="${escapeHtml(p.name)}">
+            <div class="idea-paper-result-main">
+                <div class="idea-paper-result-title">${escapeHtml(p.display)}</div>
+                <div class="idea-paper-result-tags">${tagBadges}</div>
+            </div>
+            <button class="btn-ai-recommend idea-add-btn" ${atLimit ? 'disabled' : ''}>${atLimit ? '已达上限' : '+ 添加'}</button>
+        </div>`;
+    }).join('');
+    comparePaperResults.querySelectorAll('.idea-paper-result').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if (el.classList.contains('disabled')) return;
+            const name = el.dataset.name;
+            if (compareSelected.length >= MAX_COMPARE_PAPERS) {
+                showToast(`最多选择 ${MAX_COMPARE_PAPERS} 篇`);
+                return;
+            }
+            compareSelected.push(name);
+            renderCompareSelected();
+            renderCompareResults();
+        });
+    });
+}
+
+comparePaperSearch.addEventListener('input', renderCompareResults);
+
+runCompareBtn.addEventListener('click', async () => {
+    if (compareSelected.length !== MAX_COMPARE_PAPERS) {
+        showToast(`请选择 ${MAX_COMPARE_PAPERS} 篇论文`);
+        return;
+    }
+    runCompareBtn.disabled = true;
+    runCompareBtn.innerHTML = '<span class="ai-loading"></span>对照中';
+    compareResult.innerHTML = '<div class="analysis-loading">正在生成对照报告，请稍候...</div>';
+    compareResultToolbar.style.display = 'none';
+    try {
+        const result = await apiPost('/api/ai/compare', {
+            paper_a: compareSelected[0],
+            paper_b: compareSelected[1],
+            focus: compareFocusInput.value
+        });
+        if (result.success) {
+            compareCurrentSource = result.content;
+            compareCurrentReasoning = result.reasoning_content || '';
+            compareResult.innerHTML = `<div class="analysis-text">${renderMarkdown(result.content)}</div>`;
+            compareResultToolbar.style.display = 'flex';
+            renderCompareThinking();
+            compareCurrentSession = {
+                id: result.session_id,
+                paper_a: result.paper_a,
+                paper_b: result.paper_b,
+                focus: result.focus
+            };
+            renderCompareHistory();
+            if (aiConfig.thinking_enabled && !compareCurrentReasoning) {
+                showToast('提示：已开启思考但未获取到思维链');
+            } else {
+                showToast('对照已生成 ⚖️');
+            }
+        } else {
+            compareResult.innerHTML = `<div class="analysis-loading">生成失败：${escapeHtml(result.error || '未知错误')}</div>`;
+        }
+    } catch (e) {
+        console.error(e);
+        compareResult.innerHTML = `<div class="analysis-loading">生成失败：${escapeHtml(e.message || '请检查AI配置')}</div>`;
+    } finally {
+        runCompareBtn.innerHTML = '⚖️ 开始对照';
+        updateCompareRunBtnState();
+    }
+});
+
+clearCompareBtn.addEventListener('click', () => {
+    compareSelected = [];
+    compareCurrentSession = null;
+    compareCurrentSource = '';
+    compareCurrentReasoning = '';
+    renderCompareSelected();
+    renderCompareResults();
+    compareResult.innerHTML = '<div class="analysis-loading">已清空，请重新选择</div>';
+    compareResultToolbar.style.display = 'none';
+    renderCompareThinking();
+});
+
+closeCompareBtn.addEventListener('click', closeCompareModal);
+compareModal.addEventListener('click', (e) => {
+    if (e.target === compareModal) closeCompareModal();
+});
+document.getElementById('compareBtn').addEventListener('click', openCompareModal);
+
+function buildCompareMarkdown() {
+    const time = new Date().toLocaleString('zh-CN');
+    let pa = { title: compareSelected[0] || '' }, pb = { title: compareSelected[1] || '' };
+    if (compareCurrentSession) {
+        pa = compareCurrentSession.paper_a || pa;
+        pb = compareCurrentSession.paper_b || pb;
+    }
+    const focus = compareCurrentSession && compareCurrentSession.focus
+        ? `\n## 对照角度\n${compareCurrentSession.focus}\n` : '';
+    let thinking = '';
+    if (compareCurrentReasoning && compareCurrentReasoning.trim()) {
+        thinking = `\n## 模型的思考过程\n\n\`\`\`\n${compareCurrentReasoning}\n\`\`\`\n`;
+    }
+    return `# Compare 两篇论文对照\n\n> 生成时间：${time}\n\n## 选中的论文\n- A: ${pa.title || pa.name}\n- B: ${pb.title || pb.name}\n${focus}${thinking}---\n\n${compareCurrentSource || ''}`;
+}
+
+function downloadCompareMd() {
+    if (!compareCurrentSource) return;
+    const md = buildCompareMarkdown();
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const fname = `compare-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.md`;
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('已下载 .md 文件 📥');
+}
+
+async function copyCompareMd() {
+    if (!compareCurrentSource) return;
+    const md = buildCompareMarkdown();
+    try {
+        await navigator.clipboard.writeText(md);
+        showToast('已复制到剪贴板 📋');
+    } catch (e) {
+        showToast('复制失败，请手动选择');
+    }
+}
+
+downloadCompareMdBtn.addEventListener('click', downloadCompareMd);
+copyCompareMdBtn.addEventListener('click', copyCompareMd);
+
+async function renderCompareHistory() {
+    try {
+        const data = await apiGet('/api/ai/compare/history');
+        const list = data.sessions || [];
+        if (list.length === 0) {
+            compareHistoryList.innerHTML = '<div class="analysis-history-empty">暂无历史</div>';
+            return;
+        }
+        compareHistoryList.innerHTML = list.map(s => {
+            const titles = (s.titles || []).filter(Boolean);
+            const label = titles.length >= 2 ? `${titles[0]} vs ${titles[1]}` : (titles[0] || '(untitled)');
+            const short = label.length > 36 ? label.substring(0, 36) + '…' : label;
+            return `<div class="analysis-history-item" data-id="${escapeHtml(s.id)}">
+                <div class="analysis-history-time">${new Date(s.time * 1000).toLocaleString('zh-CN')}</div>
+                <div class="analysis-history-preview">${escapeHtml(short)}</div>
+            </div>`;
+        }).join('');
+        compareHistoryList.querySelectorAll('.analysis-history-item').forEach(el => {
+            el.addEventListener('click', async () => {
+                const id = el.dataset.id;
+                try {
+                    const resp = await apiGet('/api/ai/compare/history/' + encodeURIComponent(id));
+                    if (resp.success && resp.session) {
+                        const s = resp.session;
+                        compareCurrentSource = s.result || '';
+                        compareCurrentReasoning = s.reasoning_content || '';
+                        compareCurrentSession = {
+                            id: s.id,
+                            paper_a: s.paper_a,
+                            paper_b: s.paper_b,
+                            focus: s.focus
+                        };
+                        // 还原选择
+                        compareSelected = [];
+                        if (s.paper_a) compareSelected.push(s.paper_a.name);
+                        if (s.paper_b) compareSelected.push(s.paper_b.name);
+                        compareFocusInput.value = s.focus || '';
+                        compareResult.innerHTML = `<div class="analysis-text">${renderMarkdown(compareCurrentSource)}</div>`;
+                        compareResultToolbar.style.display = 'flex';
+                        renderCompareSelected();
+                        renderCompareThinking();
+                    }
+                } catch (e) {
+                    showToast('加载历史失败：' + e.message);
+                }
+            });
+        });
+    } catch (e) {
+        compareHistoryList.innerHTML = '<div class="analysis-history-empty">加载失败</div>';
+    }
+}
+
+/* ========== Meta-Review (方法学元综述) ========== */
+const metaReviewModal = document.getElementById('metaReviewModal');
+const metaReviewPaperSearch = document.getElementById('metaReviewPaperSearch');
+const metaReviewSelectedChips = document.getElementById('metaReviewSelectedChips');
+const metaReviewPaperResults = document.getElementById('metaReviewPaperResults');
+const metaReviewCounter = document.getElementById('metaReviewCounter');
+const metaReviewFocusInput = document.getElementById('metaReviewFocus');
+const runMetaReviewBtn = document.getElementById('runMetaReviewBtn');
+const clearMetaReviewBtn = document.getElementById('clearMetaReviewBtn');
+const closeMetaReviewBtn = document.getElementById('closeMetaReviewBtn');
+const metaReviewResult = document.getElementById('metaReviewResult');
+const metaReviewResultToolbar = document.getElementById('metaReviewResultToolbar');
+const downloadMetaReviewMdBtn = document.getElementById('downloadMetaReviewMdBtn');
+const copyMetaReviewMdBtn = document.getElementById('copyMetaReviewMdBtn');
+const metaReviewThinkingPanel = document.getElementById('metaReviewThinkingPanel');
+const metaReviewThinkingContent = document.getElementById('metaReviewThinkingContent');
+const metaReviewThinkingMeta = document.getElementById('metaReviewThinkingMeta');
+const metaReviewHistoryList = document.getElementById('metaReviewHistoryList');
+
+let metaReviewSelected = [];
+let metaReviewCurrentSession = null;
+let metaReviewCurrentSource = '';
+let metaReviewCurrentReasoning = '';
+const MAX_META_REVIEW_PAPERS = 8;
+const MIN_META_REVIEW_PAPERS = 3;
+
+function renderMetaReviewThinking() {
+    if (metaReviewCurrentReasoning && metaReviewCurrentReasoning.trim()) {
+        metaReviewThinkingContent.textContent = metaReviewCurrentReasoning;
+        metaReviewThinkingMeta.textContent = `(${metaReviewCurrentReasoning.length} 字)`;
+        metaReviewThinkingPanel.style.display = 'block';
+    } else {
+        metaReviewThinkingPanel.style.display = 'none';
+        metaReviewThinkingContent.textContent = '';
+        metaReviewThinkingMeta.textContent = '';
+    }
+}
+
+function openMetaReviewModal() {
+    metaReviewSelected = [];
+    metaReviewCurrentSession = null;
+    metaReviewCurrentSource = '';
+    metaReviewCurrentReasoning = '';
+    metaReviewPaperSearch.value = '';
+    metaReviewFocusInput.value = '';
+    metaReviewResult.innerHTML = '<div class="analysis-loading">选择 3-8 篇论文后点击"📚 生成元综述"</div>';
+    metaReviewResultToolbar.style.display = 'none';
+    renderMetaReviewThinking();
+    renderMetaReviewSelected();
+    renderMetaReviewResults();
+    renderMetaReviewHistory();
+    metaReviewModal.style.display = 'flex';
+    requestAnimationFrame(() => metaReviewModal.classList.add('show'));
+}
+
+function closeMetaReviewModal() {
+    metaReviewModal.classList.remove('show');
+    setTimeout(() => { metaReviewModal.style.display = 'none'; }, 300);
+}
+
+function renderMetaReviewSelected() {
+    metaReviewCounter.textContent = `已选 ${metaReviewSelected.length}/${MAX_META_REVIEW_PAPERS}`;
+    if (metaReviewSelected.length === 0) {
+        metaReviewSelectedChips.innerHTML = '<div class="empty-hint">还未选择论文，搜索名称或标签来添加（需 3-8 篇）</div>';
+    } else {
+        metaReviewSelectedChips.innerHTML = metaReviewSelected.map(name => {
+            const p = allPapers.find(x => x.name === name);
+            const title = p ? p.display : name;
+            const short = title.length > 28 ? title.substring(0, 28) + '…' : title;
+            return `<span class="idea-paper-chip" data-name="${escapeHtml(name)}" title="${escapeHtml(title)}">
+                ${escapeHtml(short)}
+                <span class="idea-chip-remove">×</span>
+            </span>`;
+        }).join('');
+        metaReviewSelectedChips.querySelectorAll('.idea-paper-chip').forEach(el => {
+            el.addEventListener('click', () => {
+                const name = el.dataset.name;
+                metaReviewSelected = metaReviewSelected.filter(n => n !== name);
+                renderMetaReviewSelected();
+                renderMetaReviewResults();
+            });
+        });
+    }
+    updateMetaReviewRunBtnState();
+}
+
+function updateMetaReviewRunBtnState() {
+    const ok = metaReviewSelected.length >= MIN_META_REVIEW_PAPERS
+            && metaReviewSelected.length <= MAX_META_REVIEW_PAPERS;
+    runMetaReviewBtn.disabled = !ok;
+    runMetaReviewBtn.style.opacity = ok ? '1' : '0.5';
+    runMetaReviewBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+function renderMetaReviewResults() {
+    const q = metaReviewPaperSearch.value.trim().toLowerCase();
+    let filtered = allPapers.filter(p => !metaReviewSelected.includes(p.name));
+    if (q) {
+        filtered = filtered.filter(p => {
+            if (p.display.toLowerCase().includes(q)) return true;
+            if (p.tags && p.tags.some(t => t.toLowerCase().includes(q))) return true;
+            return false;
+        });
+    }
+    filtered = filtered.slice(0, 30);
+    if (filtered.length === 0) {
+        metaReviewPaperResults.innerHTML = '<div class="empty-hint">没有匹配的论文</div>';
+        return;
+    }
+    const atLimit = metaReviewSelected.length >= MAX_META_REVIEW_PAPERS;
+    metaReviewPaperResults.innerHTML = filtered.map(p => {
+        const tagBadges = (p.tags || []).slice(0, 3).map(t => `<span class="idea-mini-tag">${escapeHtml(t)}</span>`).join('');
+        return `<div class="idea-paper-result${atLimit ? ' disabled' : ''}" data-name="${escapeHtml(p.name)}">
+            <div class="idea-paper-result-main">
+                <div class="idea-paper-result-title">${escapeHtml(p.display)}</div>
+                <div class="idea-paper-result-tags">${tagBadges}</div>
+            </div>
+            <button class="btn-ai-recommend idea-add-btn" ${atLimit ? 'disabled' : ''}>${atLimit ? '已达上限' : '+ 添加'}</button>
+        </div>`;
+    }).join('');
+    metaReviewPaperResults.querySelectorAll('.idea-paper-result').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if (el.classList.contains('disabled')) return;
+            const name = el.dataset.name;
+            if (metaReviewSelected.length >= MAX_META_REVIEW_PAPERS) {
+                showToast(`最多选择 ${MAX_META_REVIEW_PAPERS} 篇`);
+                return;
+            }
+            metaReviewSelected.push(name);
+            renderMetaReviewSelected();
+            renderMetaReviewResults();
+        });
+    });
+}
+
+metaReviewPaperSearch.addEventListener('input', renderMetaReviewResults);
+
+runMetaReviewBtn.addEventListener('click', async () => {
+    if (metaReviewSelected.length < MIN_META_REVIEW_PAPERS) {
+        showToast(`请至少选择 ${MIN_META_REVIEW_PAPERS} 篇论文`);
+        return;
+    }
+    if (metaReviewSelected.length > MAX_META_REVIEW_PAPERS) {
+        showToast(`最多选择 ${MAX_META_REVIEW_PAPERS} 篇论文`);
+        return;
+    }
+    runMetaReviewBtn.disabled = true;
+    runMetaReviewBtn.innerHTML = '<span class="ai-loading"></span>综述中';
+    metaReviewResult.innerHTML = '<div class="analysis-loading">正在生成元综述，请稍候（可能需要 20-40 秒）...</div>';
+    metaReviewResultToolbar.style.display = 'none';
+    try {
+        const result = await apiPost('/api/ai/meta-review', {
+            papers: metaReviewSelected,
+            focus: metaReviewFocusInput.value
+        });
+        if (result.success) {
+            metaReviewCurrentSource = result.content;
+            metaReviewCurrentReasoning = result.reasoning_content || '';
+            metaReviewResult.innerHTML = `<div class="analysis-text">${renderMarkdown(result.content)}</div>`;
+            metaReviewResultToolbar.style.display = 'flex';
+            renderMetaReviewThinking();
+            metaReviewCurrentSession = {
+                id: result.session_id,
+                papers: result.papers,
+                focus: result.focus
+            };
+            renderMetaReviewHistory();
+            if (aiConfig.thinking_enabled && !metaReviewCurrentReasoning) {
+                showToast('提示：已开启思考但未获取到思维链');
+            } else {
+                showToast('元综述已生成 📚');
+            }
+        } else {
+            metaReviewResult.innerHTML = `<div class="analysis-loading">生成失败：${escapeHtml(result.error || '未知错误')}</div>`;
+        }
+    } catch (e) {
+        console.error(e);
+        metaReviewResult.innerHTML = `<div class="analysis-loading">生成失败：${escapeHtml(e.message || '请检查AI配置')}</div>`;
+    } finally {
+        runMetaReviewBtn.innerHTML = '📚 生成元综述';
+        updateMetaReviewRunBtnState();
+    }
+});
+
+clearMetaReviewBtn.addEventListener('click', () => {
+    metaReviewSelected = [];
+    metaReviewCurrentSession = null;
+    metaReviewCurrentSource = '';
+    metaReviewCurrentReasoning = '';
+    renderMetaReviewSelected();
+    renderMetaReviewResults();
+    metaReviewResult.innerHTML = '<div class="analysis-loading">已清空，请重新选择</div>';
+    metaReviewResultToolbar.style.display = 'none';
+    renderMetaReviewThinking();
+});
+
+closeMetaReviewBtn.addEventListener('click', closeMetaReviewModal);
+metaReviewModal.addEventListener('click', (e) => {
+    if (e.target === metaReviewModal) closeMetaReviewModal();
+});
+document.getElementById('metaReviewBtn').addEventListener('click', openMetaReviewModal);
+
+function buildMetaReviewMarkdown() {
+    const time = new Date().toLocaleString('zh-CN');
+    let papers = [];
+    if (metaReviewCurrentSession && metaReviewCurrentSession.papers) {
+        papers = metaReviewCurrentSession.papers;
+    } else {
+        papers = metaReviewSelected.map(n => {
+            const p = allPapers.find(x => x.name === n);
+            return { name: n, title: p ? p.display : n };
+        });
+    }
+    const paperList = papers.map((p, i) => `${i + 1}. ${p.title || p.name}`).join('\n');
+    const focus = metaReviewCurrentSession && metaReviewCurrentSession.focus
+        ? `\n## 元综述视角\n${metaReviewCurrentSession.focus}\n` : '';
+    let thinking = '';
+    if (metaReviewCurrentReasoning && metaReviewCurrentReasoning.trim()) {
+        thinking = `\n## 模型的思考过程\n\n\`\`\`\n${metaReviewCurrentReasoning}\n\`\`\`\n`;
+    }
+    return `# Meta-Review 方法学元综述\n\n> 生成时间：${time}\n\n## 选中的论文 (${papers.length} 篇)\n${paperList}\n${focus}${thinking}---\n\n${metaReviewCurrentSource || ''}`;
+}
+
+function downloadMetaReviewMd() {
+    if (!metaReviewCurrentSource) return;
+    const md = buildMetaReviewMarkdown();
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const fname = `meta-review-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.md`;
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('已下载 .md 文件 📥');
+}
+
+async function copyMetaReviewMd() {
+    if (!metaReviewCurrentSource) return;
+    const md = buildMetaReviewMarkdown();
+    try {
+        await navigator.clipboard.writeText(md);
+        showToast('已复制到剪贴板 📋');
+    } catch (e) {
+        showToast('复制失败，请手动选择');
+    }
+}
+
+downloadMetaReviewMdBtn.addEventListener('click', downloadMetaReviewMd);
+copyMetaReviewMdBtn.addEventListener('click', copyMetaReviewMd);
+
+async function renderMetaReviewHistory() {
+    try {
+        const data = await apiGet('/api/ai/meta-review/history');
+        const list = data.sessions || [];
+        if (list.length === 0) {
+            metaReviewHistoryList.innerHTML = '<div class="analysis-history-empty">暂无历史</div>';
+            return;
+        }
+        metaReviewHistoryList.innerHTML = list.map(s => {
+            const titles = (s.titles || []).filter(Boolean);
+            const label = titles.length > 0
+                ? `${titles.length} 篇：${titles.slice(0, 2).join('、')}${titles.length > 2 ? '…' : ''}`
+                : '(untitled)';
+            const short = label.length > 36 ? label.substring(0, 36) + '…' : label;
+            return `<div class="analysis-history-item" data-id="${escapeHtml(s.id)}">
+                <div class="analysis-history-time">${new Date(s.time * 1000).toLocaleString('zh-CN')}</div>
+                <div class="analysis-history-preview">${escapeHtml(short)}</div>
+            </div>`;
+        }).join('');
+        metaReviewHistoryList.querySelectorAll('.analysis-history-item').forEach(el => {
+            el.addEventListener('click', async () => {
+                const id = el.dataset.id;
+                try {
+                    const resp = await apiGet('/api/ai/meta-review/history/' + encodeURIComponent(id));
+                    if (resp.success && resp.session) {
+                        const s = resp.session;
+                        metaReviewCurrentSource = s.result || '';
+                        metaReviewCurrentReasoning = s.reasoning_content || '';
+                        metaReviewCurrentSession = {
+                            id: s.id,
+                            papers: s.papers,
+                            focus: s.focus
+                        };
+                        metaReviewSelected = (s.papers || []).map(p => p.name).filter(Boolean);
+                        metaReviewFocusInput.value = s.focus || '';
+                        metaReviewResult.innerHTML = `<div class="analysis-text">${renderMarkdown(metaReviewCurrentSource)}</div>`;
+                        metaReviewResultToolbar.style.display = 'flex';
+                        renderMetaReviewSelected();
+                        renderMetaReviewThinking();
+                    }
+                } catch (e) {
+                    showToast('加载历史失败：' + e.message);
+                }
+            });
+        });
+    } catch (e) {
+        metaReviewHistoryList.innerHTML = '<div class="analysis-history-empty">加载失败</div>';
+    }
+}
+
 /* 启动 */
 init();

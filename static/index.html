@@ -143,6 +143,12 @@
                 <button class="btn-ai-search" id="ideaSparkBtn" title="跨论文灵感碰撞">
                     💡 IDEA spark!
                 </button>
+                <button class="btn-ai-search" id="compareBtn" title="两篇论文对照">
+                    ⚖️ 对照
+                </button>
+                <button class="btn-ai-search" id="metaReviewBtn" title="方法学元综述">
+                    📚 元综述
+                </button>
                 <button class="btn-sort" id="sortBtn" title="切换排序方式">
                     🗂️ 默认排序
                 </button>
@@ -447,8 +453,112 @@
         </div>
     </div>
 
+    <!-- Compare (两篇对照) 弹窗 -->
+    <div class="modal-overlay" id="compareModal" style="display:none;">
+        <div class="modal-card modal-card-wide analysis-layout">
+            <div class="modal-tape"></div>
+            <h2>⚖️ Compare — 两篇论文对照</h2>
+            <div class="analysis-body">
+                <div class="analysis-sidebar" id="compareSidebar">
+                    <div class="analysis-sidebar-title">📜 历史对照</div>
+                    <div class="analysis-sidebar-list" id="compareHistoryList"></div>
+                </div>
+                <div class="idea-spark-main">
+                    <div class="idea-section">
+                        <div class="idea-section-title">
+                            <span>📚 选择两篇论文</span>
+                            <span class="idea-counter" id="compareCounter">已选 0/2</span>
+                        </div>
+                        <input type="text" class="idea-paper-search" id="comparePaperSearch" placeholder="🔍 搜索论文名称或标签..." autocomplete="off">
+                        <div class="idea-selected-chips" id="compareSelectedChips"></div>
+                        <div class="idea-paper-results" id="comparePaperResults"></div>
+                    </div>
+                    <div class="idea-section">
+                        <div class="idea-section-title">🎯 对照角度（可选）</div>
+                        <textarea class="idea-context-textarea" id="compareFocus" placeholder="例如：重点比较两者的能效比 / 复现门槛 / 在长序列上的扩展性..." maxlength="300"></textarea>
+                    </div>
+                    <div class="idea-actions-row">
+                        <button class="btn-ai-recommend" id="runCompareBtn">⚖️ 开始对照</button>
+                        <button class="btn-cancel" id="clearCompareBtn">🗑️ 清空选择</button>
+                    </div>
+                    <div class="idea-section idea-result-section">
+                        <div class="idea-section-title">📝 对照报告</div>
+                        <div class="idea-thinking-panel" id="compareThinkingPanel" style="display:none;">
+                            <details>
+                                <summary>💭 模型的思考过程 <span class="idea-thinking-meta" id="compareThinkingMeta"></span></summary>
+                                <div class="idea-thinking-content" id="compareThinkingContent"></div>
+                            </details>
+                        </div>
+                        <div class="analysis-content idea-result-area" id="compareResult">
+                            <div class="analysis-loading">选择两篇论文后点击"⚖️ 开始对照"</div>
+                        </div>
+                        <div class="idea-result-toolbar" id="compareResultToolbar" style="display:none;">
+                            <button class="btn-ai-recommend" id="downloadCompareMdBtn">💾 下载为 .md</button>
+                            <button class="btn-ai-recommend" id="copyCompareMdBtn">📋 复制</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="closeCompareBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meta-Review (方法学元综述) 弹窗 -->
+    <div class="modal-overlay" id="metaReviewModal" style="display:none;">
+        <div class="modal-card modal-card-wide analysis-layout">
+            <div class="modal-tape"></div>
+            <h2>📚 Meta-Review — 方法学元综述</h2>
+            <div class="analysis-body">
+                <div class="analysis-sidebar" id="metaReviewSidebar">
+                    <div class="analysis-sidebar-title">📜 历史元综述</div>
+                    <div class="analysis-sidebar-list" id="metaReviewHistoryList"></div>
+                </div>
+                <div class="idea-spark-main">
+                    <div class="idea-section">
+                        <div class="idea-section-title">
+                            <span>📚 选择论文（3-8 篇）</span>
+                            <span class="idea-counter" id="metaReviewCounter">已选 0/8</span>
+                        </div>
+                        <input type="text" class="idea-paper-search" id="metaReviewPaperSearch" placeholder="🔍 搜索论文名称或标签..." autocomplete="off">
+                        <div class="idea-selected-chips" id="metaReviewSelectedChips"></div>
+                        <div class="idea-paper-results" id="metaReviewPaperResults"></div>
+                    </div>
+                    <div class="idea-section">
+                        <div class="idea-section-title">🔭 元综述视角（可选）</div>
+                        <textarea class="idea-context-textarea" id="metaReviewFocus" placeholder="例如：聚焦评估方法学 / 理论框架 / 数据假设 / 工程化路径..." maxlength="300"></textarea>
+                    </div>
+                    <div class="idea-actions-row">
+                        <button class="btn-ai-recommend" id="runMetaReviewBtn">📚 生成元综述</button>
+                        <button class="btn-cancel" id="clearMetaReviewBtn">🗑️ 清空选择</button>
+                    </div>
+                    <div class="idea-section idea-result-section">
+                        <div class="idea-section-title">📝 元综述</div>
+                        <div class="idea-thinking-panel" id="metaReviewThinkingPanel" style="display:none;">
+                            <details>
+                                <summary>💭 模型的思考过程 <span class="idea-thinking-meta" id="metaReviewThinkingMeta"></span></summary>
+                                <div class="idea-thinking-content" id="metaReviewThinkingContent"></div>
+                            </details>
+                        </div>
+                        <div class="analysis-content idea-result-area" id="metaReviewResult">
+                            <div class="analysis-loading">选择 3-8 篇论文后点击"📚 生成元综述"</div>
+                        </div>
+                        <div class="idea-result-toolbar" id="metaReviewResultToolbar" style="display:none;">
+                            <button class="btn-ai-recommend" id="downloadMetaReviewMdBtn">💾 下载为 .md</button>
+                            <button class="btn-ai-recommend" id="copyMetaReviewMdBtn">📋 复制</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="closeMetaReviewBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast"></div>
 
-    <script src="/static/app.js?v=6"></script>
+    <script src="/static/app.js?v=7"></script>
 </body>
 </html>

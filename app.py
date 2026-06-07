@@ -138,6 +138,95 @@ def get_analysis_session(session_id):
     return None
 
 
+def load_comparison_history():
+    """加载 Compare (两篇对照) 历史会话"""
+    if COMPARISON_HISTORY_FILE.exists():
+        try:
+            with open(COMPARISON_HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"sessions": []}
+
+
+def save_comparison_history(data):
+    """保存 Compare 历史会话"""
+    with open(COMPARISON_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def add_comparison_session(paper_a_info, paper_b_info, focus, result_content, reasoning_content=None):
+    """保存一次 Compare 结果到历史"""
+    data = load_comparison_history()
+    session = {
+        "id": str(int(time.time() * 1000)),
+        "time": int(time.time()),
+        "paper_a": paper_a_info,
+        "paper_b": paper_b_info,
+        "focus": focus or "",
+        "result": result_content,
+        "reasoning_content": reasoning_content or ""
+    }
+    data["sessions"].insert(0, session)
+    if len(data["sessions"]) > 50:
+        data["sessions"] = data["sessions"][:50]
+    save_comparison_history(data)
+    return session
+
+
+def get_comparison_session(session_id):
+    """根据 id 获取单条 Compare 会话"""
+    data = load_comparison_history()
+    for s in data.get("sessions", []):
+        if s.get("id") == session_id:
+            return s
+    return None
+
+
+def load_meta_review_history():
+    """加载 Meta-Review (方法学元综述) 历史会话"""
+    if META_REVIEW_HISTORY_FILE.exists():
+        try:
+            with open(META_REVIEW_HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"sessions": []}
+
+
+def save_meta_review_history(data):
+    """保存 Meta-Review 历史会话"""
+    with open(META_REVIEW_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def add_meta_review_session(papers_info, focus, result_content, reasoning_content=None):
+    """保存一次 Meta-Review 结果到历史"""
+    data = load_meta_review_history()
+    session = {
+        "id": str(int(time.time() * 1000)),
+        "time": int(time.time()),
+        "papers": papers_info,
+        "focus": focus or "",
+        "result": result_content,
+        "reasoning_content": reasoning_content or ""
+    }
+    data["sessions"].insert(0, session)
+    if len(data["sessions"]) > 50:
+        data["sessions"] = data["sessions"][:50]
+    save_meta_review_history(data)
+    return session
+
+
+def get_meta_review_session(session_id):
+    """根据 id 获取单条 Meta-Review 会话"""
+    data = load_meta_review_history()
+    for s in data.get("sessions", []):
+        if s.get("id") == session_id:
+            return s
+    return None
+
+
 def load_reading():
     """加载论文阅读记录"""
     if READING_FILE.exists():
@@ -314,6 +403,8 @@ AI_CONFIG_FILE = ROOT / "ai_config.json"
 ABSTRACTS_FILE = ROOT / "paper_abstracts.json"
 IDEA_SPARK_HISTORY_FILE = ROOT / "idea_spark_history.json"
 ANALYSIS_HISTORY_FILE = ROOT / "analysis_history.json"
+COMPARISON_HISTORY_FILE = ROOT / "comparison_history.json"
+META_REVIEW_HISTORY_FILE = ROOT / "meta_review_history.json"
 
 IDEA_SPARK_SYSTEM_PROMPT = """你是一位科研创新催化剂，擅长从多篇论文中"碰撞"出可执行的研究方向。用户会给你 2-4 篇不同/相关领域的论文信息（每篇包含：标题、标签、摘要、用户笔记），你的任务是跨越这些论文的边界，发现隐藏的研究机会。
 
@@ -371,6 +462,112 @@ IDEA_SPARK_SYSTEM_PROMPT = """你是一位科研创新催化剂，擅长从多�
 - 技术具体，避免"提高性能"等空话，要说"在 CIFAR-10 上把 top-1 提到 X%"
 - 编号、列表、加粗合理使用
 - 不要寒暄、不要总结、直接进入分析
+"""
+
+
+COMPARE_SYSTEM_PROMPT = """你是一位严谨的科研综述写作者。用户会给你**两篇**论文（论文 A 与论文 B），请生成一份**结构化对照**。
+
+**注意**：每篇论文可能附带：
+- **标签**：用户给论文打的领域/方法标签
+- **用户笔记**：用户记录的阅读心得（可能包含摘要没有的洞察）
+
+请充分利用所有这些信息，输出一份**诚实的对照**——不要强行"找出差异"，如果两篇在某些维度上相似就直接写相似；如果有重大分歧就明确指出。
+
+**输出要求：纯 Markdown 格式**，按以下结构组织（**必须包含全部小节**）：
+
+## 1. 对照表
+
+用一张 markdown 表对比两篇论文，行 = 维度，列 = 论文 A / 论文 B。
+
+**必须包含的 7 个维度**：
+| 维度 | 论文 A | 论文 B |
+|---|---|---|
+| 核心问题 | … | … |
+| 方法 | …（1 句话） | …（1 句话） |
+| 数据集 | … | … |
+| 评估指标 | … | … |
+| 主要结果 | …（写明数字或"定性"） | … |
+| 局限性 | …（论文自己承认的） | … |
+| 复现难度 | 简单/中等/困难 + 1 句原因 | … |
+
+表格必须紧凑——每格 ≤ 30 字。如果某格内容超过 30 字，把细节移到下面"补充说明"。
+
+## 2. 关键分歧与适用场景
+
+1-2 段，**有立场地**指出两篇最关键的方法学分歧，并回答：
+- "如果我关心 X 场景，应该选哪一篇，为什么？"
+- "如果把 A 的方法迁移到 B 的任务，第一步该做什么？"
+
+## 3. 互相借鉴的具体建议
+
+- 论文 A 可以从论文 B 学到 1 件事（具体到方法名/模块名）
+- 论文 B 可以从论文 A 学到 1 件事
+
+**风格要求**：
+- 中文回答
+- 具体到方法名、数据集名、指标名（如 "在 ImageNet 上 top-1 提到 84.3%"）
+- 表格用纯 Markdown 语法（不要 HTML）
+- 不要寒暄、不要总结、不要 "希望这能帮到你"
+- 复现难度评级要诚实（"困难" 不丢人）
+"""
+
+
+META_REVIEW_SYSTEM_PROMPT = """你是一位方法学综述者。用户给了你 N 篇（3-8 篇）论文，请你**跨越所有论文**做一次方法学层面的元综述，输出"森林视角"而非"树木细节"。
+
+**注意**：每篇论文可能附带：
+- **标签**：用户给论文打的领域/方法标签
+- **用户笔记**：用户记录的阅读心得
+
+请充分利用所有信息，输出一份**有立场的元综述**。
+
+**输出要求：纯 Markdown 格式**，按以下结构组织（**必须包含全部 6 个小节**）：
+
+## 1. 共同方法学背景
+2-3 句话，给出这 N 篇论文所处的总体方法学地形（"这是一个 X 领域的 Y 类方法，主要沿 Z 路径发展"）。
+
+## 2. 方法学分类法
+把这些论文使用的方法分到一个 ≤ 3 层的分类树里。
+- 顶层 ≤ 3 个分类
+- 每层 ≤ 5 个分支
+- 树形用缩进列表表达，例如：
+  - **数据驱动方法**
+    - 监督式（如：X、Y）
+    - 自监督式（如：Z）
+  - **模型驱动方法**
+    - 概率图模型
+    - 强化学习
+
+## 3. 跨论文差异矩阵
+一张 markdown 表，**行 = 论文，列 = 4 个维度**：
+| 论文 | 核心方法（1 句） | 数据集 | 评估方式 | 关键创新点 |
+|---|---|---|---|---|
+| 论文 1 | … | … | … | … |
+| 论文 2 | … | … | … | … |
+| … | … | … | … | … |
+
+每格 ≤ 25 字，**不要把摘要塞进表格**。
+
+## 4. 方法学趋势
+2-3 条 bullets，**有判断地**指出：
+- 哪些方向正在趋同（"X 和 Y 都开始用 Z"）
+- 哪些方向正在分化（"X 走 A 路径，Y 走 B 路径"）
+- 哪些是新出现的（"Z 在 2025 年才被提出"）
+
+## 5. 共同盲点
+2-3 条 bullets，指出这些论文**普遍**没解决或没充分评估的问题：
+- 评估协议上的共同缺失（如：都只在 ImageNet 上测，没在 OOD 上测）
+- 数据上的共同假设（如：都假设输入是独立同分布的）
+- 方法上的共同局限（如：都依赖某个特定先验）
+
+## 6. 关键洞察
+1 段，**研究合作者口吻**——告诉用户"如果让我在这 N 篇里选一个最有未来感的交叉点，那会是 X 和 Y 的方法 + Z 的评估范式，因为 …"。
+
+**风格要求**：
+- 中文回答
+- 分类法要反映**实际**的方法学分布，不要为了工整而硬分
+- 矩阵表格用纯 Markdown
+- 不要寒暄、不要总结陈词、不要 "希望这能帮到你"
+- 共同盲点要诚实——不要为了"显得全面"而无中生有
 """
 
 
@@ -618,6 +815,84 @@ def ai_idea_spark(papers_info, user_context, config):
     }
 
 
+def _format_paper_for_compare_meta(p, label):
+    """为 compare / meta-review 构造单篇论文的 prompt 文本块"""
+    block = f"【{label}】\n标题：{p.get('title', p.get('name', ''))}"
+    tags = p.get("tags") or []
+    if tags:
+        block += f"\n标签：{', '.join(tags)}"
+    ab = (p.get("abstract") or "").strip()
+    if ab:
+        block += f"\n摘要：{ab[:1500]}"
+    notes = (p.get("notes") or "").strip()
+    if notes:
+        block += f"\n用户笔记：{notes[:500]}"
+    return block
+
+
+def ai_compare_papers(paper_a_info, paper_b_info, focus, config):
+    """Compare 两篇论文对照
+
+    paper_a_info / paper_b_info: {"name", "title", "abstract", "tags", "notes"}
+    focus: 可选，对照角度的 1-2 句描述
+    返回: {"success": True, "content": "...", "reasoning_content": "..."}
+    """
+    a_block = _format_paper_for_compare_meta(paper_a_info, "论文 A")
+    b_block = _format_paper_for_compare_meta(paper_b_info, "论文 B")
+
+    user_parts = [f"以下是用户选中的两篇论文：\n\n{a_block}\n\n{b_block}"]
+    if focus and focus.strip():
+        user_parts.append(f"\n\n【用户指定的对照角度】\n{focus.strip()}\n\n请围绕这个角度突出对照表与关键分歧。")
+    user_parts.append("\n\n请按 system prompt 要求的结构输出 Markdown 形式的对照报告。")
+    user_content = "".join(user_parts)
+
+    messages = [
+        {"role": "system", "content": COMPARE_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content}
+    ]
+    content, reasoning_content = call_llm(messages, config, max_tokens=3000)
+    return {
+        "success": True,
+        "content": content,
+        "reasoning_content": reasoning_content,
+        "paper_a": paper_a_info,
+        "paper_b": paper_b_info,
+        "focus": focus or ""
+    }
+
+
+def ai_meta_review(papers_info, focus, config):
+    """Meta-Review 方法学元综述（3-8 篇）
+
+    papers_info: [{"name", "title", "abstract", "tags", "notes"}, ...]
+    focus: 可选，元综述的视角（"评估方法"、"理论框架" 等）
+    返回: {"success": True, "content": "...", "reasoning_content": "..."}
+    """
+    paper_blocks = []
+    for i, p in enumerate(papers_info, 1):
+        paper_blocks.append(_format_paper_for_compare_meta(p, f"论文 {i}"))
+    papers_str = "\n\n".join(paper_blocks)
+
+    user_parts = [f"以下是用户选中的 {len(papers_info)} 篇论文：\n\n{papers_str}"]
+    if focus and focus.strip():
+        user_parts.append(f"\n\n【用户指定的元综述视角】\n{focus.strip()}\n\n请围绕这个视角组织分类法、矩阵与共同盲点。")
+    user_parts.append("\n\n请按 system prompt 要求的 6 个小节输出 Markdown 形式的元综述。")
+    user_content = "".join(user_parts)
+
+    messages = [
+        {"role": "system", "content": META_REVIEW_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content}
+    ]
+    content, reasoning_content = call_llm(messages, config, max_tokens=4096)
+    return {
+        "success": True,
+        "content": content,
+        "reasoning_content": reasoning_content,
+        "papers": papers_info,
+        "focus": focus or ""
+    }
+
+
 def add_idea_spark_session(papers_info, user_context, result_content, reasoning_content=None):
     """把一次 Idea Spark 会话写入历史"""
     data = load_idea_spark_history()
@@ -838,6 +1113,69 @@ class PaperHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "invalid id"}, 400)
                 return
             session = get_analysis_session(sid)
+            if not session:
+                self._send_json({"error": "not found"}, 404)
+                return
+            self._send_json({"success": True, "session": session})
+            return
+
+        # API: Compare (两篇对照) 历史列表 /api/ai/compare/history
+        if path == "/api/ai/compare/history":
+            data = load_comparison_history()
+            summary = []
+            for s in data.get("sessions", []):
+                a = s.get("paper_a") or {}
+                b = s.get("paper_b") or {}
+                titles = [a.get("title") or a.get("name", ""), b.get("title") or b.get("name", "")]
+                preview = (s.get("result") or "")[:80].replace("\n", " ")
+                summary.append({
+                    "id": s.get("id"),
+                    "time": s.get("time"),
+                    "titles": titles,
+                    "focus": s.get("focus", ""),
+                    "preview": preview
+                })
+            self._send_json({"success": True, "sessions": summary})
+            return
+
+        # API: Compare 单条历史 /api/ai/compare/history/{id}
+        if path.startswith("/api/ai/compare/history/"):
+            sid = path[len("/api/ai/compare/history/"):]
+            if not sid:
+                self._send_json({"error": "invalid id"}, 400)
+                return
+            session = get_comparison_session(sid)
+            if not session:
+                self._send_json({"error": "not found"}, 404)
+                return
+            self._send_json({"success": True, "session": session})
+            return
+
+        # API: Meta-Review (方法学元综述) 历史列表 /api/ai/meta-review/history
+        if path == "/api/ai/meta-review/history":
+            data = load_meta_review_history()
+            summary = []
+            for s in data.get("sessions", []):
+                papers = s.get("papers") or []
+                titles = [p.get("title") or p.get("name", "") for p in papers]
+                preview = (s.get("result") or "")[:80].replace("\n", " ")
+                summary.append({
+                    "id": s.get("id"),
+                    "time": s.get("time"),
+                    "titles": titles,
+                    "focus": s.get("focus", ""),
+                    "preview": preview
+                })
+            self._send_json({"success": True, "sessions": summary})
+            return
+
+        # API: Meta-Review 单条历史 /api/ai/meta-review/history/{id}
+        if path.startswith("/api/ai/meta-review/history/"):
+            sid = path[len("/api/ai/meta-review/history/"):]
+            if not sid:
+                self._send_json({"error": "invalid id"}, 400)
+                return
+            session = get_meta_review_session(sid)
             if not session:
                 self._send_json({"error": "not found"}, 404)
                 return
@@ -1313,6 +1651,147 @@ class PaperHandler(BaseHTTPRequestHandler):
                 })
             except Exception as e:
                 print(f"[Idea Spark Error] {e}")
+                self._send_json({"error": str(e)}, 500)
+            return
+
+        # API: Compare 两篇论文对照 /api/ai/compare
+        if path == "/api/ai/compare":
+            content_len = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_len).decode("utf-8")
+            try:
+                payload = json.loads(body)
+            except json.JSONDecodeError:
+                self._send_json({"error": "invalid json"}, 400)
+                return
+            paper_a = (payload.get("paper_a") or "").strip()
+            paper_b = (payload.get("paper_b") or "").strip()
+            focus = (payload.get("focus") or "").strip()
+            if not paper_a or not paper_b:
+                self._send_json({"error": "请提供两篇论文的 PDF 文件名"}, 400)
+                return
+            if paper_a == paper_b:
+                self._send_json({"error": "请选择两篇不同的论文"}, 400)
+                return
+            cfg = load_ai_config()
+            if not cfg.get("enabled") or not cfg.get("api_key"):
+                self._send_json({"error": "AI未配置或已禁用"}, 400)
+                return
+            try:
+                all_papers = get_papers()
+                paper_map = {p["name"]: p for p in all_papers}
+                info_a = paper_map.get(paper_a)
+                info_b = paper_map.get(paper_b)
+                missing = [n for n, info in ((paper_a, info_a), (paper_b, info_b)) if not info]
+                if missing:
+                    self._send_json({"error": f"以下论文不存在: {', '.join(missing)}"}, 404)
+                    return
+
+                def _info(p, fallback_name):
+                    title = p.get("display") or fallback_name
+                    abstract = (p.get("abstract") or "").strip()
+                    if not abstract:
+                        # 实时抽取
+                        pdf_path = ROOT / fallback_name
+                        if pdf_path.exists():
+                            abstract = extract_abstract_from_pdf(pdf_path)
+                            if abstract:
+                                abstracts = load_abstracts()
+                                abstracts[fallback_name] = abstract
+                                save_abstracts(abstracts)
+                    return {
+                        "name": fallback_name,
+                        "title": title,
+                        "abstract": abstract,
+                        "tags": p.get("tags", []),
+                        "notes": p.get("notes", "")
+                    }
+
+                a_info = _info(info_a, paper_a)
+                b_info = _info(info_b, paper_b)
+                result = ai_compare_papers(a_info, b_info, focus, cfg)
+                session = add_comparison_session(
+                    a_info, b_info, focus,
+                    result["content"],
+                    result.get("reasoning_content")
+                )
+                self._send_json({
+                    "success": True,
+                    "content": result["content"],
+                    "reasoning_content": result.get("reasoning_content"),
+                    "paper_a": a_info,
+                    "paper_b": b_info,
+                    "focus": focus,
+                    "session_id": session["id"]
+                })
+            except Exception as e:
+                print(f"[Compare Error] {e}")
+                self._send_json({"error": str(e)}, 500)
+            return
+
+        # API: Meta-Review 方法学元综述 /api/ai/meta-review
+        if path == "/api/ai/meta-review":
+            content_len = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_len).decode("utf-8")
+            try:
+                payload = json.loads(body)
+            except json.JSONDecodeError:
+                self._send_json({"error": "invalid json"}, 400)
+                return
+            paper_names = payload.get("papers") or []
+            focus = (payload.get("focus") or "").strip()
+            if not isinstance(paper_names, list) or len(paper_names) < 3 or len(paper_names) > 8:
+                self._send_json({"error": "请选择 3-8 篇论文"}, 400)
+                return
+            cfg = load_ai_config()
+            if not cfg.get("enabled") or not cfg.get("api_key"):
+                self._send_json({"error": "AI未配置或已禁用"}, 400)
+                return
+            try:
+                all_papers = get_papers()
+                paper_map = {p["name"]: p for p in all_papers}
+                papers_info = []
+                missing = []
+                for name in paper_names:
+                    p = paper_map.get(name)
+                    if not p:
+                        missing.append(name)
+                        continue
+                    title = p.get("display") or name
+                    abstract = (p.get("abstract") or "").strip()
+                    if not abstract:
+                        pdf_path = ROOT / name
+                        if pdf_path.exists():
+                            abstract = extract_abstract_from_pdf(pdf_path)
+                            if abstract:
+                                abstracts = load_abstracts()
+                                abstracts[name] = abstract
+                                save_abstracts(abstracts)
+                    papers_info.append({
+                        "name": name,
+                        "title": title,
+                        "abstract": abstract,
+                        "tags": p.get("tags", []),
+                        "notes": p.get("notes", "")
+                    })
+                if missing:
+                    self._send_json({"error": f"以下论文不存在: {', '.join(missing)}"}, 404)
+                    return
+                result = ai_meta_review(papers_info, focus, cfg)
+                session = add_meta_review_session(
+                    papers_info, focus,
+                    result["content"],
+                    result.get("reasoning_content")
+                )
+                self._send_json({
+                    "success": True,
+                    "content": result["content"],
+                    "reasoning_content": result.get("reasoning_content"),
+                    "papers": papers_info,
+                    "focus": focus,
+                    "session_id": session["id"]
+                })
+            except Exception as e:
+                print(f"[Meta-Review Error] {e}")
                 self._send_json({"error": str(e)}, 500)
             return
 

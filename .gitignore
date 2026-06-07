@@ -12,7 +12,9 @@ env/
 # 用户数据与密钥（每个用户各自生成）
 ai_config.json
 analysis_history.json
+comparison_history.json
 idea_spark_history.json
+meta_review_history.json
 paper_abstracts.json
 paper_notes.json
 paper_reading.json

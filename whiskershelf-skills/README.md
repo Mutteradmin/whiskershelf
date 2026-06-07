@@ -68,6 +68,24 @@ whiskershelf-skills/
     │   └── dispatch_pipeline.py           # build a 5-stage dispatch plan from a brief
     └── examples/
         └── parallel-tasks.md
+
+├── whiskershelf-compare/                   # Compare 2 papers (structured table)
+│   ├── SKILL.md
+│   ├── references/
+│   │   └── api-endpoints.md
+│   ├── scripts/
+│   │   ├── compare.py / compare.sh        # CLI wrapper; --history, --session
+│   └── examples/
+│       └── session.md
+
+└── whiskershelf-meta-review/               # Methodology meta-review across 3-8 papers
+    ├── SKILL.md
+    ├── references/
+    │   └── api-endpoints.md
+    ├── scripts/
+    │   ├── meta_review.py / meta_review.sh# CLI wrapper; --history, --session
+    └── examples/
+        └── session.md
 ```
 
 ## The combined workflow
@@ -75,8 +93,9 @@ whiskershelf-skills/
 1. CC starts → loads `whiskershelf-brief` from this directory.
 2. User picks a direction → CC uses `parse_brief.py` to extract it, then `whiskershelf-search` / `whiskershelf-web-search` for context.
 3. If the user wants depth → CC uses `whiskershelf-subagents` (and the `dispatch_pipeline.py` helper) to spawn 4–7 parallel subagents, then synthesizes.
-4. During execution, CC may use `whiskershelf-tag` (gated) to organize new artifacts.
-5. At the end, CC writes up findings and tags relevant papers.
+4. **Side workflows** — `whiskershelf-compare` (2 papers side-by-side) and `whiskershelf-meta-review` (3-8 papers methodology synthesis) are 1-shot AI calls that fit between steps 2-3.
+5. During execution, CC may use `whiskershelf-tag` (gated) to organize new artifacts.
+6. At the end, CC writes up findings and tags relevant papers.
 
 ## Conventions
 
